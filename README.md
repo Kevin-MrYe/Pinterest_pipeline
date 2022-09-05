@@ -32,7 +32,7 @@ To emulate the live environment, the project design an [API](https://github.com/
 ### 2.2 Send data to Kafka
 The project used python-kafka as the client for the Apache Kafka distributed stream processing system.
 
-Create a topic:
+1. Create a topic:
 ```python
 admin_client = KafkaAdminClient(
     bootstrap_servers="localhost:9092", 
@@ -44,7 +44,7 @@ topics.append(NewTopic(name="Pinterest_data", num_partitions=3, replication_fact
 admin_client.create_topics(new_topics=topics)
 ```
 
-Send data from API to Kafka:
+2. Send data from API to Kafka:
 ```python
 td_producer = KafkaProducer(
     bootstrap_servers="localhost:9092",
@@ -64,7 +64,7 @@ def get_db_row(item: Data):
 ## 3. Batch Processing
 ### 3.1 Consume data into AWS S3
 For batch data, this part will use pyspark to consume data from kafka and store the data into AWS S3. Generally, we can use KafkaConsumer to consume data from kafka, then write data to AWS S3 using boto3. Specific steps are as follows:
-* Consumer data from Kafka
+1. Consumer data from Kafka
 ```python
 batch_consumer = KafkaConsumer(
     "Pinterest_data",
@@ -74,7 +74,7 @@ batch_consumer = KafkaConsumer(
 )
 ```
 
-* Write data to AWS S3 using boto3
+2.  Write data to AWS S3 using boto3
 ```python
 s3_client = boto3.client('s3')
 for message in batch_consumer:
@@ -91,7 +91,7 @@ for message in batch_consumer:
 ### 3.2 Process data using PySpark
 When processing data with Spark, we need to read data from different data sources, such as the popular AWS S3. Therefore, this part first explains how to use pyspark to read data from AWS S3, and then use spark SQL for simple data processing.
 
-* Read data from AWS S3
+1. Read data from AWS S3
 
 In general, we can integrate spark with other applications by adding appropriate additional libraries(jars). These add-on libraries act as connectors. These add-on libraries can be found in the [Maven repo](https://mvnrepository.com/repos/central) and can be imported by adding Maven coordinates or downloading the jar. Integrating spark with AWS S3 requires the following two dependent libraries:
 ```
@@ -112,9 +112,24 @@ hadoopConf.set('fs.s3a.secret.key', secretAccessKey)
 hadoopConf.set('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider') 
 # Create our Spark session
 spark=SparkSession(sc)
+# Read from the S3 bucket
+df = spark.read.option("multiline","true").json(s3_creds['BUCKET_NAME']) 
+# You may want to change this to read csv depending on the files your reading from the bucket
 ```
 
-* Process data using spark SQL
+2. Process data using spark SQL
+
+Spark SQL is a Spark module for structured data processing. It provides a series of operations including selection, aggregation, etc. Here are some simple cleaning operations：
+```python
+# group by category
+category_count = df.groupby("category").count().persist()
+
+## filter by category
+category_filter = df.filter("category == 'christmas'")
+
+## group by type
+type_count = df.groupby("is_image_or_video").count().persist()
+```
 
 ### 3.3 Send data to Cassandra
 ### 3.4 Run ad-hoc queries using Presto
