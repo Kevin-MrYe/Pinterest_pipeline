@@ -19,11 +19,13 @@ conf = SparkConf() \
 sc=SparkContext(conf=conf)
 
 # Configure the setting to read from the S3 bucket
+print(s3_creds)
 accessKeyId= s3_creds['accessKeyId']
 secretAccessKey= s3_creds['secretAccessKey']
 hadoopConf = sc._jsc.hadoopConfiguration()
 hadoopConf.set('fs.s3a.access.key', accessKeyId)
 hadoopConf.set('fs.s3a.secret.key', secretAccessKey)
+# hadoopConf.set('fs.s3a.session.token', sessionToken)
 hadoopConf.set('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider') # Allows the package to authenticate with AWS
 
 # Create our Spark session
@@ -46,9 +48,9 @@ follow_filter.show()
 type_count = df.groupby("is_image_or_video").count().persist()
 type_count.show()
 
-counted.write.format("org.apache.spark.sql.cassandra")\
-        .options(table="pinterest_category", keyspace="data")\
-        .option("confirm.truncate","true")\
-        .mode("overwrite")\
-        .save()
+# counted.write.format("org.apache.spark.sql.cassandra")\
+#         .options(table="pinterest_category", keyspace="data")\
+#         .option("confirm.truncate","true")\
+#         .mode("overwrite")\
+#         .save()
 
