@@ -89,7 +89,32 @@ for message in batch_consumer:
     )
 ```
 ### 3.2 Process data using PySpark
+When processing data with Spark, we need to read data from different data sources, such as the popular AWS S3. Therefore, this part first explains how to use pyspark to read data from AWS S3, and then use spark SQL for simple data processing.
 
+* Read data from AWS S3
+
+In general, we can integrate spark with other applications by adding appropriate additional libraries(jars). These add-on libraries act as connectors. These add-on libraries can be found in the [Maven repo](https://mvnrepository.com/repos/central) and can be imported by adding Maven coordinates or downloading the jar. Integrating spark with AWS S3 requires the following two dependent libraries:
+```
+com.amazonaws:aws-java-sdk-s3:1.12.196
+org.apache.hadoop:hadoop-aws:3.3.1
+```
+(Versions depend on your case)
+
+After configuring the connector, you need to configure the context (access ID and access key) in SparkSession for authentication.
+```python
+# Configure the setting to read from the S3 bucket
+accessKeyId= s3_creds['accessKeyId']
+secretAccessKey= s3_creds['secretAccessKey']
+hadoopConf = sc._jsc.hadoopConfiguration()
+hadoopConf.set('fs.s3a.access.key', accessKeyId)
+hadoopConf.set('fs.s3a.secret.key', secretAccessKey)
+# Allows the package to authenticate with AWS
+hadoopConf.set('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider') 
+# Create our Spark session
+spark=SparkSession(sc)
+```
+
+* Process data using spark SQL
 
 ### 3.3 Send data to Cassandra
 ### 3.4 Run ad-hoc queries using Presto
