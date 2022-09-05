@@ -17,13 +17,9 @@ batch_consumer = KafkaConsumer(
     value_deserializer = lambda message: json.loads(message),
     auto_offset_reset="earliest"
 )
-
 s3_client = boto3.client('s3')
 
 for message in batch_consumer:
-    print(type(message))
-    print(message)
-    print((message.value)["unique_id"])
     json_object = json.dumps(message.value, indent=4)
     unique_id = (message.value)["unique_id"]
     filename = 'event-'+unique_id+'.json'
