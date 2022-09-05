@@ -32,6 +32,7 @@ td_producer = KafkaProducer(
 @app.post("/pin/")
 def get_db_row(item: Data):
     data = dict(item)
+    print(data)
     td_producer.send(topic="Pinterest_data", value=data)
     return item
 
