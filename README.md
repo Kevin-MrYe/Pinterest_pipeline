@@ -113,7 +113,7 @@ hadoopConf.set('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoo
 # Create our Spark session
 spark=SparkSession(sc)
 # Read from the S3 bucket
-df = spark.read.option("multiline","true").json(s3_creds['BUCKET_NAME']) 
+df = spark.read.option("multiline"t5,"true").json(s3_creds['BUCKET_NAME']) 
 # You may want to change this to read csv depending on the files your reading from the bucket
 ```
 
@@ -132,7 +132,26 @@ type_count = df.groupby("is_image_or_video").count().persist()
 ```
 
 ### 3.3 Send data to Cassandra
+Apache Cassandra is one of the most popular NoSQL columnar-based data stores used by global companies today. Cassandra provides aggregation commands such as SUM, COUNT, MAX, MIN, and AVG. But so far, Cassandra doesn't allow JOIN operations on tables. After the batch data is cleaned, it will be sent to Cassandra for storage. Also, integrating spark with Cassandra requires additional connector and environment configuration. Specific information is as follows:
+
+1. Connector(jar)
+```
+com.datastax.spark:spark-cassandra-connector_2.12:3.2.0
+```
+(Versions depend on your case)
+
+2. Configuration
+```python
+conf = SparkConf() \
+    .setAppName('S3toSpark') \
+    .setMaster('local[*]')\
+    .set("spark.cassandra.connection.host", "127.0.0.1")\
+    .set("spark.cassandra.connection.port", "9042")
+```
+
 ### 3.4 Run ad-hoc queries using Presto
+Presto is a powerful data querying engine that does not provide its own data storage platform. Accordingly, we need to integrate Presto with other tools in order to be able to query data. 
+
 ### 3.5 Orchestrate batch processing using Airflow 
 ## 4. Stream Processing
 ## 5. System Monitoring
