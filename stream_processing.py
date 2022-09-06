@@ -17,17 +17,6 @@ kafka_bootstrap_servers = 'localhost:9092'
 with open('config/postgres_creds.yaml','r') as f:
             ps_creds = yaml.safe_load(f)
 
-def _write_streaming(df, epoch_id) -> None:         
-
-    df.write \
-        .mode('append') \
-        .format("jdbc") \
-        .option("url", ps_creds["URL"]) \
-        .option("driver", "org.postgresql.Driver") \
-        .option("dbtable", ps_creds["DBTABLE"]) \
-        .option("user", ps_creds["USER"]) \
-        .option("password", ps_creds["PASSWORD"]) \
-        .save()
 
 spark = SparkSession \
         .builder \
@@ -53,14 +42,19 @@ stream_df = stream_df.select(
         json_schema).alias("parsed_data")).select(col("parsed_data.*"))
 
 
-# # outputting the messages to the console 
-# stream_df.writeStream \
-#     .format("console") \
-#     .outputMode("append") \
-#     .start() \
-#     .awaitTermination()
-
 #outputing the data to postgresql
+def _write_streaming(df, epoch_id) -> None:         
+
+    df.write \
+        .mode('append') \
+        .format("jdbc") \
+        .option("url", ps_creds["URL"]) \
+        .option("driver", "org.postgresql.Driver") \
+        .option("dbtable", ps_creds["DBTABLE"]) \
+        .option("user", ps_creds["USER"]) \
+        .option("password", ps_creds["PASSWORD"]) \
+        .save()
+
 stream_df.writeStream \
     .foreachBatch(_write_streaming)\
     .start() \
