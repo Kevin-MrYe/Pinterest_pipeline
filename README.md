@@ -171,5 +171,11 @@ cassandra.contact-points=127.0.0.1
 ```
 
 ### 3.5 Orchestrate batch processing using Airflow 
+Apache Airflow is a task orchestration tool that allows we to define a series of tasks that are executed in a specific order. In Airflow we use Directed Acyclic Graphs (DAGs) to define a workflow. For batch processing, we usually trigger tasks manually or through the scheduler. In this project's pipeline, we want to execute batche processing once a day. This includes executing **batch_consumer.py** and **batch_processing.py**:
+```python
+
+```
+
+
 ## 4. Stream Processing
 ## 5. System Monitoring
