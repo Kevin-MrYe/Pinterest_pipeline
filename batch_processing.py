@@ -45,9 +45,9 @@ category_filter.show()
 type_count = df.groupby("is_image_or_video").count().persist()
 type_count.show()
 
-# counted.write.format("org.apache.spark.sql.cassandra")\
-#         .options(table="pinterest_category", keyspace="data")\
-#         .option("confirm.truncate","true")\
-#         .mode("overwrite")\
-#         .save()
+category_count.write.format("org.apache.spark.sql.cassandra")\
+        .options(table="category_count", keyspace="pinterest_data")\
+        .option("confirm.truncate","true")\
+        .mode("overwrite")\
+        .save()
 
