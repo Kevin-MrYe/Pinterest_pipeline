@@ -244,3 +244,14 @@ stream_df.writeStream \
 ```
 
 ## 5. System Monitoring
+Finally, I use prometheus to monitor Cassandra and PostgreSQL metrics, and use Grafana to build visual dashboards, which can be observed intuitively.
+
+1. Monitor Cassandra
+<p align="left" width="100%">
+  <img src ="https://github.com/Kevin-MrYe/Pinterest_pipeline/blob/master/images/cassandra_metrics.png" width = '900px'>
+</p>
+
+2. Monitor PostgreSQL
+<p align="left" width="100%">
+  <img src ="https://github.com/Kevin-MrYe/Pinterest_pipeline/blob/master/images/postgresql_metrics.png" width = '900px'>
+</p>
