@@ -19,10 +19,14 @@ Pinterest have billions of user interactions such as image uploads or image clic
 ## 1. Project Overview
 As the system overview diagram shown below, this project developed an end-to-end data processing pipeline in Python based on Pinterests experiment processing pipeline.It is implemented based on Lambda architecture to take advantage of both batch and stream-processing. 
 
-Firstly, Creating an API and using Kafka to distribute the data between S3 and Spark streaming. For stream processing, stream data was processed using Spark Streaming and saved to a PostgresSQL database for real-time analysis. For batch processing, batch data was extracted from S3 and transformed in Spark using Airflow to orchestrate the transformations. Then batch data was then loaded into Cassandra for long term storage, ad-hoc analysis using Presto and monitored using Prometheus and Grafana.
+Firstly, Creating an API and using Kafka to distribute the data between S3 and Spark streaming. 
+
+For stream processing, stream data was processed using Structured Streaming and saved to a PostgresSQL database for real-time analysis. 
+
+For batch processing, batch data was extracted from S3 and transformed in Spark using Airflow to orchestrate the transformations. Then batch data was then loaded into Cassandra for long term storage, ad-hoc analysis using Presto and monitored using Prometheus and Grafana.
 
 <p align="left" width="100%">
-  <img src ="https://github.com/Kevin-MrYe/Pinterest_pipeline/blob/master/images/project-overview.png" width = '900px'>
+  <img src ="https://github.com/Kevin-MrYe/Pinterest_pipeline/blob/master/images/project-overview2.png" width = '900px'>
 </p>
 
 ## 2. Data Ingestion
@@ -173,9 +177,70 @@ cassandra.contact-points=127.0.0.1
 ### 3.5 Orchestrate batch processing using Airflow 
 Apache Airflow is a task orchestration tool that allows we to define a series of tasks that are executed in a specific order. In Airflow we use Directed Acyclic Graphs (DAGs) to define a workflow. For batch processing, we usually trigger tasks manually or through the scheduler. In this project's pipeline, we want to execute batche processing once a day. This includes executing **batch_consumer.py** and **batch_processing.py**:
 ```python
+with DAG(dag_id='batch_processing',
+         default_args=default_args,
+         schedule_interval='0 10 * * *',
+         catchup=False,
+         ) as dag:
 
+    batch_consume_task = BashOperator(
+        task_id='consume_batch_data',
+        bash_command=f'cd {work_dir} && python batch_consumer.py '
+    )
+    batch_process_task = BashOperator(
+        task_id='process_batch_data',
+        bash_command=f'cd {work_dir} && python batch_processing.py'
+    )
+
+    batch_consume_task >> batch_process_task
 ```
 
 
 ## 4. Stream Processing
+For streaming data, this project uses Spark Structured Streaming to consume data from Kafka in real time, then process the data, and finally send the streaming data to PostgreSQL for storage.Similarly, saprk requires appropriate additional libraries (jars) and configuration information to integrate Kafka and PostgreSQL. The specific configuration is as follows:
+
+1. **Consume stream data from kafka**
+
+Add-on library
+```
+org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1
+```
+
+Configuration:
+```python
+stream_df = spark \
+        .readStream \
+        .format("kafka") \
+        .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
+        .option("subscribe", kafka_topic_name) \
+        .option("startingOffsets", "latest") \
+        .load()
+```
+2. **Write stream data to postgreSQL**
+
+Add-on library
+```
+org.postgresql:postgresql:42.5.0
+```
+
+Configuration:
+```python
+def _write_streaming(df, epoch_id) -> None:         
+
+    df.write \
+        .mode('append') \
+        .format("jdbc") \
+        .option("url", ps_creds["URL"]) \
+        .option("driver", "org.postgresql.Driver") \
+        .option("dbtable", ps_creds["DBTABLE"]) \
+        .option("user", ps_creds["USER"]) \
+        .option("password", ps_creds["PASSWORD"]) \
+        .save()
+        
+stream_df.writeStream \
+    .foreachBatch(_write_streaming)\
+    .start() \
+    .awaitTermination()
+```
+
 ## 5. System Monitoring
