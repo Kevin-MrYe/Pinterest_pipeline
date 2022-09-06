@@ -5,6 +5,7 @@ import pandas as pd
 from pyspark.sql.types import *
 from pyspark.sql.functions import from_json
 from pyspark.sql.functions import col
+import yaml
 
 # Download spark sql kakfa package from Maven repository and submit to PySpark at runtime. 
 os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1,org.postgresql:postgresql:42.5.0 pyspark-shell'
@@ -13,16 +14,19 @@ kafka_topic_name = "Pinterest_data"
 # Specify your Kafka server to read data from.
 kafka_bootstrap_servers = 'localhost:9092'
 
+with open('config/postgres_creds.yaml','r') as f:
+            ps_creds = yaml.safe_load(f)
+
 def _write_streaming(df, epoch_id) -> None:         
 
     df.write \
         .mode('append') \
         .format("jdbc") \
-        .option("url", f"jdbc:postgresql://localhost:5432/pinterest_streaming") \
+        .option("url", ps_creds["URL"]) \
         .option("driver", "org.postgresql.Driver") \
-        .option("dbtable", 'experimental_data') \
-        .option("user", 'postgres') \
-        .option("password", '19980505') \
+        .option("dbtable", ps_creds["DBTABLE"]) \
+        .option("user", ps_creds["USER"]) \
+        .option("password", ps_creds["PASSWORD"]) \
         .save()
 
 spark = SparkSession \
