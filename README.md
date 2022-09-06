@@ -150,7 +150,25 @@ conf = SparkConf() \
 ```
 
 ### 3.4 Run ad-hoc queries using Presto
-Presto is a powerful data querying engine that does not provide its own data storage platform. Accordingly, we need to integrate Presto with other tools in order to be able to query data. 
+Presto is a powerful data querying engine that does not provide its own data storage platform. Accordingly, we need to integrate Presto with other tools in order to be able to query data. The core strength of Presto is a feature called data federation, meaning that in a single query, Presto can connect to and combine data from multiple sources.
+
+* Presto-Cassandra Integration
+ 
+In order to connect Presto with Cassandra, we need to create a Presto connector configuration file. Presto looks for connector files in "/etc/catalog/" by default.
+```console
+cd $PRESTO_HOME/etc
+sudo mkdir catalog
+```
+
+Then create a new file called **cassandra.properties** which specifying connector name and contact points.
+```console
+# Create a new cassandra.properties file
+sudo nano cassandra.properties
+
+# Add this to the cassandra.properties file
+connector.name=cassandra # cassandra is one possible option outlined in docs
+cassandra.contact-points=127.0.0.1
+```
 
 ### 3.5 Orchestrate batch processing using Airflow 
 ## 4. Stream Processing
