@@ -70,9 +70,10 @@ class SparkBatch:
         self.df= self.df.withColumn("downloaded", self.df["downloaded"].cast("int")) \
                         .withColumn("index", self.df["index"].cast("int")) 
         
+        # Rename the column
         self.df = self.df.withColumnRenamed("index", "index_id")
 
-        # reorders columns
+        # reorder columns
         self.df = self.df.select('unique_id',
                                 'index_id',
                                 'title',
