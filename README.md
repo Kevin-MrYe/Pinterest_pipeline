@@ -50,15 +50,18 @@ admin_client.create_topics(new_topics=topics)
 
 2. Send data from API to Kafka:
 ```python
+# Create Producer to send message to a kafka topic
 td_producer = KafkaProducer(
     bootstrap_servers="localhost:9092",
     client_id="Pinterest data producer",
     value_serializer=lambda mlmessage: dumps(mlmessage).encode("ascii")
 ) 
 
+# An API execute some actions when a post request to localhost:9092/pin/
 @app.post("/pin/")
 def get_db_row(item: Data):
     data = dict(item)
+    print(data)
     td_producer.send(topic="Pinterest_data", value=data)
     return item
 ```
@@ -70,6 +73,7 @@ def get_db_row(item: Data):
 For batch data, this part will use pyspark to consume data from kafka and store the data into AWS S3. Generally, we can use KafkaConsumer to consume data from kafka, then write data to AWS S3 using boto3. Specific steps are as follows:
 1. Consumer data from Kafka
 ```python
+# Create Consumer to consume data from kafka topic
 batch_consumer = KafkaConsumer(
     "Pinterest_data",
     bootstrap_servers = "localhost:9092",
@@ -80,6 +84,7 @@ batch_consumer = KafkaConsumer(
 
 2.  Write data to AWS S3 using boto3
 ```python
+# Write data from Consumer to S3 bucket
 s3_client = boto3.client('s3')
 for message in batch_consumer:
     json_object = json.dumps(message.value, indent=4)
@@ -106,33 +111,63 @@ org.apache.hadoop:hadoop-aws:3.3.1
 
 After configuring the connector, you need to configure the context (access ID and access key) in SparkSession for authentication.
 ```python
-# Configure the setting to read from the S3 bucket
-accessKeyId= s3_creds['accessKeyId']
-secretAccessKey= s3_creds['secretAccessKey']
-hadoopConf = sc._jsc.hadoopConfiguration()
-hadoopConf.set('fs.s3a.access.key', accessKeyId)
-hadoopConf.set('fs.s3a.secret.key', secretAccessKey)
-# Allows the package to authenticate with AWS
-hadoopConf.set('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider') 
-# Create our Spark session
-spark=SparkSession(sc)
-# Read from the S3 bucket
-df = spark.read.option("multiline"t5,"true").json(s3_creds['BUCKET_NAME']) 
-# You may want to change this to read csv depending on the files your reading from the bucket
+# Creating our Spark configuration
+        conf = SparkConf() \
+            .setAppName('S3toSpark') \
+            .setMaster('local[*]')
+
+        sc=SparkContext(conf=conf)
+
+        # Configure the setting to read from the S3 bucket
+        accessKeyId= self.s3_creds['accessKeyId']
+        secretAccessKey= self.s3_creds['secretAccessKey']
+        hadoopConf = sc._jsc.hadoopConfiguration()
+        hadoopConf.set('fs.s3a.access.key', accessKeyId)
+        hadoopConf.set('fs.s3a.secret.key', secretAccessKey)
+        hadoopConf.set('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider') 
+        
+        # Create our Spark session
+        self.spark=SparkSession(sc)
 ```
 
 2. Process data using spark SQL
 
 Spark SQL is a Spark module for structured data processing. It provides a series of operations including selection, aggregation, etc. Here are some simple cleaning operations：
 ```python
-# group by category
-category_count = df.groupby("category").count().persist()
+ # replace error or empty data with Nones
+ self.df = self.df.replace({'User Info Error': None}, subset = ['follower_count','poster_name']) \
+                  .replace({'No description available Story format': None}, subset = ['description']) \
+                  .replace({'No description available': None}, subset = ['description']) \
+                  .replace({'Image src error.': None}, subset = ['image_src'])\
+                  .replace({'N,o, ,T,a,g,s, ,A,v,a,i,l,a,b,l,e': None}, subset = ['tag_list'])\
+                  .replace({'Image src error.': None}, subset = ['image_src'])\
+                  .replace({"No Title Data Available": None}, subset = ['title']) \
 
-## filter by category
-category_filter = df.filter("category == 'christmas'")
+ # Convert the unit to corresponding zeros
+ self.df = self.df.withColumn("follower_count", when(col('follower_count').like("%k"), regexp_replace('follower_count', 'k', '000')) \
+                 .when(col('follower_count').like("%M"), regexp_replace('follower_count', 'M', '000000'))\
+                 .cast("int"))
 
-## group by type
-type_count = df.groupby("is_image_or_video").count().persist()
+ # Convert the type into int
+ self.df= self.df.withColumn("downloaded", self.df["downloaded"].cast("int")) \
+                 .withColumn("index", self.df["index"].cast("int")) 
+
+ # Rename the column
+ self.df = self.df.withColumnRenamed("index", "index_id")
+
+ # reorder columns
+ self.df = self.df.select('unique_id',
+                         'index_id',
+                         'title',
+                         'category',
+                         'description',
+                         'follower_count',
+                         'tag_list',
+                         'is_image_or_video',
+                         'image_src',
+                         'downloaded',
+                         'save_location'
+                         )
 ```
 
 ### 3.3 Send data to Cassandra
@@ -146,11 +181,14 @@ com.datastax.spark:spark-cassandra-connector_2.12:3.2.0
 
 2. Configuration
 ```python
-conf = SparkConf() \
-    .setAppName('S3toSpark') \
-    .setMaster('local[*]')\
-    .set("spark.cassandra.connection.host", "127.0.0.1")\
-    .set("spark.cassandra.connection.port", "9042")
+self.df.write.format("org.apache.spark.sql.cassandra")\
+                .option("confirm.truncate","true")\
+                .option("spark.cassandra.connection.host","127.0.0.1")\
+                .option("spark.cassandra.connection.port", "9042")\
+                .option("keyspace","pinterest_data")\
+                .option("table","pinterest_batch")\
+                .mode("overwrite")\
+                .save()
 ```
 
 ### 3.4 Run ad-hoc queries using Presto
@@ -208,6 +246,7 @@ org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1
 
 Configuration:
 ```python
+# Construct a streaming DataFrame that read date from topic
 stream_df = spark \
         .readStream \
         .format("kafka") \
@@ -225,6 +264,7 @@ org.postgresql:postgresql:42.5.0
 
 Configuration:
 ```python
+#outputing the data to postgresql
 def _write_streaming(df, epoch_id) -> None:         
 
     df.write \
